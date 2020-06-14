@@ -71,6 +71,7 @@ public:
 				file.clear();
 				file.seekp( info.first );
 				file.write( value, info.second );
+				dirty = false;
 			}
 		}
 	};
@@ -269,7 +270,7 @@ public:
 	}
 };
 
-template<int AVESZ, int BUFSZ = 250250>
+template<int AVESZ, int BUFSZ = 512512>
 class CachedFileOperator {
 public:
 	LRU<AVESZ, BUFSZ> lru;
