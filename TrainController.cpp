@@ -12,8 +12,8 @@ void TrainController::add_train( const char train_id[],
                                  Date sale_date_end,
                                  char type ) {
     // FAILURE if train_id exists
-    if (btree.exist(Hash().hash(train_id), btree_file, info_file)) {printf("-1\n"); return;}
-    if (interface->train_controller_released.btree.exist(Hash().hash(train_id), interface->train_controller_released.btree_file, interface->train_controller_released.info_file)) {printf("-1\n"); return;}
+    if (btree.exist(Hash().hash(train_id), btree_file)) {printf("-1\n"); return;}
+    if (interface->train_controller_released.btree.exist(Hash().hash(train_id), interface->train_controller_released.btree_file)) {printf("-1\n"); return;}
 
 	train_cnt++;
     Train todo_train(train_id, station_num, seat_num, stations, prices, start_time, travel_times, stopover_times, sale_date_begin, sale_date_end, type, train_cnt);
@@ -24,7 +24,7 @@ void TrainController::add_train( const char train_id[],
 
 void TrainController::delete_train( const char train_id[] ) {
     // FAILURE if train_id doesn't exist
-    if (!btree.exist(Hash().hash(train_id), btree_file, info_file)) {printf("-1\n"); return;}
+    if (!btree.exist(Hash().hash(train_id), btree_file)) {printf("-1\n"); return;}
 
     btree.remove(Hash().hash(train_id), btree_file);
     //train_cnt--;
@@ -48,6 +48,7 @@ void TrainController::load( Interface *ifs, const char *id_filename, const char 
 }
 
 void TrainController::save( int pos ) {
+	btree.write_cache(btree_file, info_file);
     info_file.close();
     btree_file.close();
     FileOperator fop;

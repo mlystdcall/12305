@@ -12,6 +12,7 @@ void OrderController::load( Interface *ifs ) {
 }
 
 void OrderController::save() {
+	btree.write_cache(btree_file, info_file);
     btree_file.close();
     info_file.close();
     FileOperator fop;

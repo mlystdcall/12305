@@ -260,7 +260,7 @@ void TicketController::buy_ticket( const char username[], const char train_id[],
 		return;
 	}
 	
-	if(!itf->user_controller.btree.exist(Hash().hash(username), itf->user_controller.btree_file, itf->user_controller.info_file)) {
+	if(!itf->user_controller.btree.exist(Hash().hash(username), itf->user_controller.btree_file)) {
 		printf("-1\n"); return;
 	}
 	User user = itf->user_controller.btree.query(Hash().hash(username), itf->user_controller.btree_file, itf->user_controller.info_file);
@@ -268,7 +268,7 @@ void TicketController::buy_ticket( const char username[], const char train_id[],
 		printf("-1\n"); return;
 	}
 
-	if(!itf->train_controller_released.btree.exist(Hash().hash(train_id), itf->train_controller_released.btree_file, itf->train_controller_released.info_file)) {	
+	if(!itf->train_controller_released.btree.exist(Hash().hash(train_id), itf->train_controller_released.btree_file)) {	
 		printf("-1\n"); return;
 	}
 
@@ -312,7 +312,7 @@ void TicketController::buy_ticket( const char username[], const char train_id[],
 }
 
 void TicketController::refund_ticket( const char username[], int order_id ) {
-	if(!itf->user_controller.btree.exist(Hash().hash(username), itf->user_controller.btree_file, itf->user_controller.info_file)) {
+	if(!itf->user_controller.btree.exist(Hash().hash(username), itf->user_controller.btree_file)) {
 		printf("-1\n"); return;
 	}
 	User user = itf->user_controller.btree.query(Hash().hash(username), itf->user_controller.btree_file, itf->user_controller.info_file);
@@ -348,6 +348,7 @@ void TicketController::load( Interface *interface ) {
 }
 
 void TicketController::save() {
+	btree.write_cache(btree_file, info_file);
 	btree_file.close();
 	info_file.close();
 }

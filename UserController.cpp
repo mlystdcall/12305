@@ -11,7 +11,7 @@ void UserController::add_user( const char cur_username[],
 				               const char mail_addr[],
 				               int privilege ) {
     // FAILURE if username exists
-    if ( btree.exist(Hash().hash(username), btree_file, info_file)) {printf("-1\n"); return;}
+    if ( btree.exist(Hash().hash(username), btree_file)) {printf("-1\n"); return;}
 	
     if (this->user_cnt == 0) {
         User todo_user(username, password, name, mail_addr, 10, ++user_cnt, 0, 0);
@@ -19,7 +19,7 @@ void UserController::add_user( const char cur_username[],
     }
     else {
         // FAILURE if cur_username doesn't exist
-        if (!btree.exist(Hash().hash(cur_username), btree_file, info_file)) {printf("-1\n"); return;}
+        if (!btree.exist(Hash().hash(cur_username), btree_file)) {printf("-1\n"); return;}
         User cur_user = btree.query(Hash().hash(cur_username), btree_file, info_file);
         if (is_online[cur_user.create_time] && (cur_user.privilege > privilege)) {
             User todo_user(username, password, name, mail_addr, privilege, ++user_cnt, 0, 0);
@@ -36,7 +36,7 @@ void UserController::add_user( const char cur_username[],
 void UserController::login( const char username[],
                             const char password[] ) {
     // FAILURE if username doesn't exist
-    if (!btree.exist(Hash().hash(username), btree_file, info_file)) {printf("-1\n"); return;}
+    if (!btree.exist(Hash().hash(username), btree_file)) {printf("-1\n"); return;}
     User todo_user = btree.query(Hash().hash(username), btree_file, info_file);
 
     if (strcmp(todo_user.password, password) == 0 && is_online[todo_user.create_time] == false) {
@@ -51,7 +51,7 @@ void UserController::login( const char username[],
 
 void UserController::logout( const char username[] ) {
     // FAILURE if username doesn't exist
-    if (!btree.exist(Hash().hash(username), btree_file, info_file)) {printf("-1\n"); return;}
+    if (!btree.exist(Hash().hash(username), btree_file)) {printf("-1\n"); return;}
     User todo_user = btree.query(Hash().hash(username), btree_file, info_file);
 
     if (is_online[todo_user.create_time] == true) {
@@ -67,8 +67,8 @@ void UserController::logout( const char username[] ) {
 void UserController::query_profile( const char cur_username[],
                                     const char username[] ) {
     // FAILURE if cur_username doesn't exist or username doesn't exist
-    if (!btree.exist(Hash().hash(cur_username), btree_file, info_file)) {printf("-1\n"); return;}
-    if (!btree.exist(Hash().hash(    username), btree_file, info_file)) {printf("-1\n"); return;}
+    if (!btree.exist(Hash().hash(cur_username), btree_file)) {printf("-1\n"); return;}
+    if (!btree.exist(Hash().hash(    username), btree_file)) {printf("-1\n"); return;}
     User cur_user  = btree.query(Hash().hash(cur_username), btree_file, info_file);
     User todo_user = btree.query(Hash().hash(username), btree_file, info_file);
 
@@ -86,8 +86,8 @@ void UserController::modify_profile( const char cur_username[],
                                      const char mail_addr[], // empty is ""
                                      int privilege ) { // empty is -1
     // FAILURE if cur_username doesn't exist or username doesn't exist
-    if (!btree.exist(Hash().hash(cur_username), btree_file, info_file)) {printf("-1\n"); return;}
-    if (!btree.exist(Hash().hash(    username), btree_file, info_file)) {printf("-1\n"); return;}
+    if (!btree.exist(Hash().hash(cur_username), btree_file)) {printf("-1\n"); return;}
+    if (!btree.exist(Hash().hash(    username), btree_file)) {printf("-1\n"); return;}
     User cur_user  = btree.query(Hash().hash(cur_username), btree_file, info_file);
     User todo_user = btree.query(Hash().hash(username), btree_file, info_file);
 
@@ -106,7 +106,7 @@ void UserController::modify_profile( const char cur_username[],
 
 void UserController::query_order( const char username[] ) {
     // FAILURE if username doesn't exist
-    if (!btree.exist(Hash().hash(username), btree_file, info_file)) {printf("-1\n"); return;}
+    if (!btree.exist(Hash().hash(username), btree_file)) {printf("-1\n"); return;}
     User todo_user = btree.query(Hash().hash(username), btree_file, info_file);
 	if(!is_online[todo_user.create_time]) {printf("-1\n"); return;}
 	print_order(username);
@@ -126,6 +126,7 @@ void UserController::load( Interface *ifs ) {
 
 void UserController::save() {
 	//memset(is_online, 0, sizeof(is_online));
+	btree.write_cache(btree_file, info_file);
     btree_file.close();
     info_file.close();
     FileOperator fop;

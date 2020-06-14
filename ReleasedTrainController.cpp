@@ -2,11 +2,10 @@
 
 #define controller_unreleased itf->train_controller_unreleased
 #define controller_released itf->train_controller_released
-#define file_operator FileOperator()
 
 void ReleasedTrainController::release_train( const char train_id[] ) {
 	std::pair<int, int> id = Hash().hash(train_id);
-	if(!controller_unreleased.btree.exist(id, controller_unreleased.btree_file, controller_unreleased.info_file)) {
+	if(!controller_unreleased.btree.exist(id, controller_unreleased.btree_file)) {
 		printf("-1\n");
 		return;
 	}
@@ -34,10 +33,10 @@ void ReleasedTrainController::query_train( const char train_id[], Date date ) {
 	//train_id exist
 	std::pair<int, int> id = Hash().hash(train_id);
 	Train train;
-	if(controller_released.btree.exist(id, controller_released.btree_file, controller_released.info_file)) {
+	if(controller_released.btree.exist(id, controller_released.btree_file)) {
 		train = controller_released.btree.query(id, controller_released.btree_file, controller_released.info_file);
 	}
-	else if(controller_unreleased.btree.exist(id, controller_unreleased.btree_file, controller_unreleased.info_file)) {
+	else if(controller_unreleased.btree.exist(id, controller_unreleased.btree_file)) {
 		train = controller_unreleased.btree.query(id, controller_unreleased.btree_file, controller_unreleased.info_file);
 		fl = 1;
 	}
@@ -158,11 +157,12 @@ void ReleasedTrainController::load(Interface *interface) {
 }
 
 void ReleasedTrainController::save() {
+	file_operator.write_cache(ticket_file);
+	btree.write_cache(que_btree_file, que_info_file);
 	ticket_file.close();
 	que_btree_file.close();
 	que_info_file.close();
 }
 
-#undef file_operator
 #undef controller_unreleased
 #undef controller_released
