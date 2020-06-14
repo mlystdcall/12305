@@ -66,8 +66,8 @@ private:
 	};
 	
 	FileOperator fop;
-	CachedFileOperator<> cfop_btree;
-	CachedFileOperator<> cfop_value;
+	CachedFileOperator<BLKSZ> cfop_btree;
+	CachedFileOperator<sizeof(Value)> cfop_value;
 	
 	std::tuple<bool,int,int> insert_leaf( int leaf_pos,
 										  Key key,

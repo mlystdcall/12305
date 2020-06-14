@@ -49,7 +49,7 @@ public:
 	}
 };
 
-template<int BUFSZ>
+template<int AVESZ, int BUFSZ>
 class LRU {
 public:
 	
@@ -78,8 +78,9 @@ public:
 	enum {
 		BASE = 19260817,
 		MOD = 998244353,
-		MAX_TRY = 5,
-		HASHSZ = 2333,
+		MAX_TRY = 10,
+		MULTI = 7,
+		HASHSZ = BUFSZ / (AVESZ + sizeof(Node) + sizeof(Node*) * MULTI),
 		MAXSZ = BUFSZ - HASHSZ * sizeof(Node*),
 	};
 	
@@ -268,10 +269,10 @@ public:
 	}
 };
 
-template<int BUFSZ = 250250>
+template<int AVESZ, int BUFSZ = 250250>
 class CachedFileOperator {
 public:
-	LRU<BUFSZ> lru;
+	LRU<AVESZ, BUFSZ> lru;
 	
 	template<typename T>
 	void read( std::fstream &file, int pos, T *pt, int cnt ) {
