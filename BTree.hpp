@@ -23,7 +23,7 @@ public:
 		BASE = 19260817,
 		MOD = 998244353,
 		MAX_TRY = 10,
-		MULTI = 5,
+		MULTI = 7,
 		MAXSZ = (BUFSZ - sizeof(Node*) * 2 - sizeof(int)) / (sizeof(Node*) * MULTI + sizeof(Node)),
 		HASHSZ = MAXSZ * MULTI,
 	};
@@ -137,7 +137,7 @@ public:
 	}
 };
 
-template<typename Key, typename Value, int BLKSZ = 4096, int BUFSZ = 700000>
+template<typename Key, typename Value, int BLKSZ = 4096, int BUFSZ = 1000000>
 class BTree {
 public:
 	enum {
