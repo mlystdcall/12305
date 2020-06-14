@@ -23,7 +23,7 @@ public:
 		BASE = 19260817,
 		MOD = 998244353,
 		MAX_TRY = 10,
-		MULTI = 7,
+		MULTI = 5,
 		MAXSZ = (BUFSZ - sizeof(Node*) * 2 - sizeof(int)) / (sizeof(Node*) * MULTI + sizeof(Node)),
 		HASHSZ = MAXSZ * MULTI,
 	};
