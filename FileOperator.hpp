@@ -275,7 +275,7 @@ public:
 	}
 };
 
-template<int AVESZ, int BUFSZ = 512512>
+template<int AVESZ, int BUFSZ = 250250>
 class CachedFileOperator {
 public:
 	LRU<AVESZ, BUFSZ> lru;
