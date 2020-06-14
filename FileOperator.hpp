@@ -79,9 +79,9 @@ public:
 	enum {
 		BASE = 19260817,
 		MOD = 998244353,
-		MAX_TRY = 10,
-		MULTI = 7,
-		HASHSZ = BUFSZ / (AVESZ + sizeof(Node) + sizeof(Node*) * MULTI),
+		MAX_TRY = 15,
+		MULTI = 19,
+		HASHSZ = BUFSZ / (AVESZ + sizeof(Node) + sizeof(Node*) * MULTI) * MULTI,
 		MAXSZ = BUFSZ - HASHSZ * sizeof(Node*),
 	};
 	
@@ -89,6 +89,8 @@ public:
 	int sz;
 	
 	LRU() {
+		std::cerr << "HASHSZ : " << HASHSZ << std::endl;
+		std::cerr << "MAXSZ / AVESZ : " << MAXSZ / (AVESZ + sizeof(Node)) << std::endl;
 		head = tail = nullptr;
 		sz = 0;
 		memset(h, 0, sizeof h);
@@ -162,8 +164,10 @@ public:
 			}
 		}
 		if( pos == -1 ) { // Hash Confliction
+			// std::cerr << "hash confliction" << std::endl;
 			return nullptr;
 		}
+		// std::cerr << "hash success" << std::endl;
 		h[pos] = new Node();
 		h[pos]->info = info;
 		h[pos]->value = new char[info.second];
@@ -217,10 +221,11 @@ public:
 	}
 	
 	int hsh( std::pair<int,int> info ) {
-		return int((1LL * info.first * BASE + info.second) % MOD);
+		return info.first;
 	}
 	
 	int adv( int x ) {
+		// return x+1;
 		return int((1LL * x * x + 1) % MOD);
 	}
 
