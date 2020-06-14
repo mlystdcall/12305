@@ -70,7 +70,10 @@ public:
 				break;
 			}
 		}
-		assert( pos != -1 ); // Hash Confliction
+		if( pos == -1 ) {
+			return;
+			assert( pos != -1 ); // Hash Confliction
+		}
 		h[pos] = new Node();
 		h[pos]->key = key;
 		h[pos]->value = value;
@@ -137,7 +140,7 @@ public:
 	}
 };
 
-template<typename Key, typename Value, int BLKSZ = 4096, int BUFSZ = 1000000>
+template<typename Key, typename Value, int BLKSZ = 4096, int BUFSZ = 800000>
 class BTree {
 public:
 	enum {
