@@ -81,22 +81,37 @@ public:
 		MOD = 998244353,
 		MAX_TRY = 15,
 		MULTI = 19,
-		HASHSZ = BUFSZ / (AVESZ + sizeof(Node) + sizeof(Node*) * MULTI) * MULTI,
-		MAXSZ = BUFSZ - HASHSZ * sizeof(Node*),
+		HASHSZ_STATIC = BUFSZ / (AVESZ + sizeof(Node) + sizeof(Node*) * MULTI) * MULTI,
 	};
 	
-	Node *h[HASHSZ], *head, *tail;
+	int HASHSZ, MAXSZ;
+	
+	// Node *h[HASHSZ];
+	Node **h;
+	Node *head, *tail;
 	int sz;
 	
+	bool is_prime( int x ) {
+		for( int i = 2; i*i <= x; ++i )
+			if( x % i == 0 ) return false;
+		return true;
+	}
+	
 	LRU() {
+		HASHSZ = (int)HASHSZ_STATIC;
+		while( is_prime(HASHSZ) == false ) ++HASHSZ;
+		h = new Node*[HASHSZ];
+		MAXSZ = int(BUFSZ - HASHSZ * sizeof(Node*));
+		
 		std::cerr << "HASHSZ : " << HASHSZ << std::endl;
 		std::cerr << "MAXSZ / AVESZ : " << MAXSZ / (AVESZ + sizeof(Node)) << std::endl;
 		head = tail = nullptr;
 		sz = 0;
-		memset(h, 0, sizeof h);
+		for( int i = 0; i < HASHSZ; ++i )
+			h[i] = nullptr;
 	}
 	
-	bool eq( std::pair<int,int> info1, std::pair<int,int> info2 ) {
+	bool eq( const std::pair<int,int> &info1, const std::pair<int,int> &info2 ) {
 		if( info1.first == info2.first ) {
 			assert( info1.second == info2.second );
 			return true;
@@ -106,9 +121,9 @@ public:
 	}
 	
 	int query_pt( std::pair<int,int> info ) {
-		for( int i = 0, hv = hsh(info); i < MAX_TRY; ++i, hv = adv(hv) ) {
-			if( h[hv % HASHSZ] && eq( h[hv % HASHSZ]->info, info ) ) {
-				return hv % HASHSZ;
+		for( int i = 0, hv = hsh(info); i < MAX_TRY; ++i, hv = adv(hv, i) ) {
+			if( h[hv] && eq( h[hv]->info, info ) ) {
+				return hv;
 			}
 		}
 		return -1;
@@ -152,14 +167,15 @@ public:
 	}
 	
 	Node *insert( std::pair<int,int> info, std::fstream &file ) {
+		// assert( query_pt(info) == -1 );
 		while( sz + info.second + int(sizeof(Node)) > MAXSZ ) {
 			assert( head != nullptr );
 			remove( head->info, file );
 		}
 		int pos = -1;
-		for( int i = 0, hv = hsh(info); i < MAX_TRY; ++i, hv = adv(hv) ) {
-			if( h[hv % HASHSZ] == nullptr ) {
-				pos = hv % HASHSZ;
+		for( int i = 0, hv = hsh(info); i < MAX_TRY; ++i, hv = adv(hv, i) ) {
+			if( h[hv] == nullptr ) {
+				pos = hv;
 				break;
 			}
 		}
@@ -220,13 +236,14 @@ public:
 		}
 	}
 	
-	int hsh( std::pair<int,int> info ) {
+	int hsh( const std::pair<int,int> &info ) {
+		return (((info.first ^ 998244353) * 19260817) & 0x7fffffff) % HASHSZ;
 		return info.first;
 	}
 	
-	int adv( int x ) {
-		// return x+1;
-		return int((1LL * x * x + 1) % MOD);
+	int adv( int x, int i ) {
+		return (x + i * i) % HASHSZ;
+		return int((1LL * x * x + 1) % HASHSZ);
 	}
 
 	void read( std::fstream &file, int pos, char *p, int len ) {
@@ -245,7 +262,7 @@ public:
 		}
 	}
 	
-	void write( std::fstream &file, int pos, char *p, int len ) {
+	void write( std::fstream &file, int pos, const char *p, int len ) {
 		std::pair<int,int> info(pos, len);
 		Node *src = query(info);
 		if( src ) {
@@ -293,10 +310,10 @@ public:
 			file.clear();
 			file.seekp(0, std::ios::end);
 			pos = (int)file.tellp();
-			file.write( reinterpret_cast<char*>(pt), int(cnt * sizeof(T)) );
+			file.write( reinterpret_cast<const char*>(pt), int(cnt * sizeof(T)) );
 			return pos;
 		} else {
-			char *p = reinterpret_cast<char*>(pt);
+			const char *p = reinterpret_cast<const char*>(pt);
 			int sz = int(cnt * sizeof(T));
 			lru.write(file, pos, p, sz);
 			return pos;

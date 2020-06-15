@@ -15,25 +15,25 @@ public:
 		ValueLim = ValueCnt / 2 - 1,
 	};
 	
-	void insert( Key key,
-				 Value value,
+	void insert( const Key &key,
+				 const Value &value,
 				 std::fstream &btree_file,
 				 std::fstream &value_file );
-	void remove( Key key,
+	void remove( const Key &key,
 				 std::fstream &btree_file );
-	void modify( Key key,
-				 Value value,
+	void modify( const Key &key,
+				 const Value &value,
 				 std::fstream &btree_file,
 				 std::fstream &value_file );
-	int query_list( Key key_left,
-					Key key_right,
+	int query_list( const Key &key_left,
+					const Key &key_right,
 					std::fstream &btree_file,
 					std::fstream &value_file,
 					std::pair<Key, Value> *&value ); // inside new outside delete
-	Value query( Key key,
+	Value query( const Key &key,
 				 std::fstream &btree_file,
 				 std::fstream &value_file );
-	bool exist( Key key,
+	bool exist( const Key &key,
 				std::fstream &btree_file );
 	void write_cache( std::fstream &btree_file,
 					  std::fstream &value_file );
@@ -70,37 +70,37 @@ private:
 	CachedFileOperator<sizeof(Value)> cfop_value;
 	
 	std::tuple<bool,int,int> insert_leaf( int leaf_pos,
-										  Key key,
-										  Value value,
+										  const Key &key,
+										  const Value &value,
 										  std::fstream &btree_file,
 										  std::fstream &value_file );
 	std::tuple<bool,int,int> insert_node( int node_pos,
-										  Key key,
-										  Value value,
+										  const Key &key,
+										  const Value &value,
 										  std::fstream &btree_file,
 										  std::fstream &value_file );
 	Key get_min_leaf( int leaf_pos, std::fstream &btree_file );
 	Key get_min_node( int node_pos, std::fstream &btree_file );
-	bool remove_leaf( int leaf_pos, Key key, std::fstream &btree_file );
-	bool remove_node( int node_pos, Key key, std::fstream &btree_file );
-	int query_leaf_pos( Key key, std::fstream &btree_file );
-	int query_leaf_pos_helper( int node_pos, Key key, std::fstream &btree_file );
+	bool remove_leaf( int leaf_pos, const Key &key, std::fstream &btree_file );
+	bool remove_node( int node_pos, const Key &key, std::fstream &btree_file );
+	int query_leaf_pos( const Key &key, std::fstream &btree_file );
+	int query_leaf_pos_helper( int node_pos, const Key &key, std::fstream &btree_file );
 	Value query_leaf( int leaf_pos,
-					  Key key,
+					  const Key &key,
 					  std::fstream &btree_file,
 					  std::fstream &value_file );
 	Value query_node( int node_pos,
-					  Key key,
+					  const Key &key,
 					  std::fstream &btree_file,
 					  std::fstream &value_file );
-	bool exist_leaf( int leaf_pos, Key key, std::fstream &btree_file );
-	bool exist_node( int node_pos, Key key, std::fstream &btree_file );
-	bool between( Key key, Key left_key, Key right_key );
+	bool exist_leaf( int leaf_pos, const Key &key, std::fstream &btree_file );
+	bool exist_node( int node_pos, const Key &key, std::fstream &btree_file );
+	bool between( const Key &key, const Key &left_key, const Key &right_key );
 };
 
 template<typename Key, typename Value, int BLKSZ>
-void BTree<Key, Value, BLKSZ> :: insert( Key key,
-										 Value value,
+void BTree<Key, Value, BLKSZ> :: insert( const Key &key,
+										 const Value &value,
 										 std::fstream &btree_file,
 										 std::fstream &value_file ) {
 	if( fop.end_pos( btree_file ) == 0 ) { // new file
@@ -155,7 +155,7 @@ void BTree<Key, Value, BLKSZ> :: insert( Key key,
 }
 
 template<typename Key, typename Value, int BLKSZ>
-void BTree<Key, Value, BLKSZ> :: remove( Key key,
+void BTree<Key, Value, BLKSZ> :: remove( const Key &key,
 										 std::fstream &btree_file ) {
 	if( fop.end_pos( btree_file ) == 0 ) { // new file
 		return;
@@ -187,16 +187,16 @@ void BTree<Key, Value, BLKSZ> :: remove( Key key,
 }
 
 template<typename Key, typename Value, int BLKSZ>
-void BTree<Key, Value, BLKSZ> :: modify( Key key,
-										 Value value,
+void BTree<Key, Value, BLKSZ> :: modify( const Key &key,
+										 const Value &value,
 										 std::fstream &btree_file,
 										 std::fstream &value_file ) {
 	insert(key, value, btree_file, value_file);
 }
 
 template<typename Key, typename Value, int BLKSZ>
-int BTree<Key, Value, BLKSZ> :: query_list( Key key_left,
-											Key key_right,
+int BTree<Key, Value, BLKSZ> :: query_list( const Key &key_left,
+											const Key &key_right,
 											std::fstream &btree_file,
 											std::fstream &value_file,
 											std::pair<Key, Value> *&value ) { // inside new outside delete
@@ -263,7 +263,7 @@ int BTree<Key, Value, BLKSZ> :: query_list( Key key_left,
 }
 
 template<typename Key, typename Value, int BLKSZ>
-Value BTree<Key, Value, BLKSZ> :: query( Key key,
+Value BTree<Key, Value, BLKSZ> :: query( const Key &key,
 										 std::fstream &btree_file,
 										 std::fstream &value_file ) {
 	if( fop.end_pos( btree_file ) == 0 ) { // new file
@@ -289,8 +289,8 @@ Value BTree<Key, Value, BLKSZ> :: query( Key key,
 }
 
 template<typename Key, typename Value, int BLKSZ>
-bool BTree<Key, Value, BLKSZ> :: exist( Key key,
-											   std::fstream &btree_file ) {
+bool BTree<Key, Value, BLKSZ> :: exist( const Key &key,
+										std::fstream &btree_file ) {
 	if( fop.end_pos( btree_file ) == 0 ) { // new file
 		return false;
 	} else {
@@ -308,8 +308,8 @@ bool BTree<Key, Value, BLKSZ> :: exist( Key key,
 
 template<typename Key, typename Value, int BLKSZ>
 std::tuple<bool,int,int> BTree<Key, Value, BLKSZ> :: insert_leaf( int leaf_pos,
-																  Key key,
-																  Value value,
+																  const Key &key,
+																  const Value &value,
 																  std::fstream &btree_file,
 																  std::fstream &value_file ) {
 	Leaf leaf;
@@ -378,8 +378,8 @@ std::tuple<bool,int,int> BTree<Key, Value, BLKSZ> :: insert_leaf( int leaf_pos,
 
 template<typename Key, typename Value, int BLKSZ>
 std::tuple<bool,int,int> BTree<Key, Value, BLKSZ> :: insert_node( int node_pos,
-																  Key key,
-																  Value value,
+																  const Key &key,
+																  const Value &value,
 																  std::fstream &btree_file,
 																  std::fstream &value_file ) {
 	Node node;
@@ -477,7 +477,7 @@ Key BTree<Key, Value, BLKSZ> :: get_min_node( int node_pos, std::fstream &btree_
 }
 
 template<typename Key, typename Value, int BLKSZ>
-bool BTree<Key, Value, BLKSZ> :: remove_leaf( int leaf_pos, Key key, std::fstream &btree_file ) {
+bool BTree<Key, Value, BLKSZ> :: remove_leaf( int leaf_pos, const Key &key, std::fstream &btree_file ) {
 	Leaf leaf;
 	cfop_btree.read( btree_file, leaf_pos, &leaf, 1 );
 	for( int i = 0; i < leaf.cnt; ++i ) {
@@ -493,7 +493,7 @@ bool BTree<Key, Value, BLKSZ> :: remove_leaf( int leaf_pos, Key key, std::fstrea
 }
 
 template<typename Key, typename Value, int BLKSZ>
-bool BTree<Key, Value, BLKSZ> :: remove_node( int node_pos, Key key, std::fstream &btree_file ) {
+bool BTree<Key, Value, BLKSZ> :: remove_node( int node_pos, const Key &key, std::fstream &btree_file ) {
 	Node node;
 	cfop_btree.read( btree_file, node_pos, &node, 1 );
 	assert( node.cnt > 1 );
@@ -670,7 +670,7 @@ bool BTree<Key, Value, BLKSZ> :: remove_node( int node_pos, Key key, std::fstrea
 }
 
 template<typename Key, typename Value, int BLKSZ>
-int BTree<Key, Value, BLKSZ> :: query_leaf_pos( Key key, std::fstream &btree_file ) {
+int BTree<Key, Value, BLKSZ> :: query_leaf_pos( const Key &key, std::fstream &btree_file ) {
 	assert( fop.end_pos( btree_file ) != 0 );
 	Node root;
 	cfop_btree.read( btree_file, 0, &root, 1 );
@@ -682,7 +682,7 @@ int BTree<Key, Value, BLKSZ> :: query_leaf_pos( Key key, std::fstream &btree_fil
 }
 
 template<typename Key, typename Value, int BLKSZ>
-int BTree<Key, Value, BLKSZ> :: query_leaf_pos_helper( int node_pos, Key key, std::fstream &btree_file ) {
+int BTree<Key, Value, BLKSZ> :: query_leaf_pos_helper( int node_pos, const Key &key, std::fstream &btree_file ) {
 	Node node;
 	cfop_btree.read( btree_file, node_pos, &node, 1 );
 	for( int i = 1; i < node.cnt; ++i ) {
@@ -703,7 +703,7 @@ int BTree<Key, Value, BLKSZ> :: query_leaf_pos_helper( int node_pos, Key key, st
 
 template<typename Key, typename Value, int BLKSZ>
 Value BTree<Key, Value, BLKSZ> :: query_leaf( int leaf_pos,
-											  Key key,
+											  const Key &key,
 											  std::fstream &btree_file,
 											  std::fstream &value_file ) {
 	Leaf leaf;
@@ -720,7 +720,7 @@ Value BTree<Key, Value, BLKSZ> :: query_leaf( int leaf_pos,
 
 template<typename Key, typename Value, int BLKSZ>
 Value BTree<Key, Value, BLKSZ> :: query_node( int node_pos,
-											  Key key,
+											  const Key &key,
 											  std::fstream &btree_file,
 											  std::fstream &value_file ) {
 	Node node;
@@ -746,7 +746,7 @@ Value BTree<Key, Value, BLKSZ> :: query_node( int node_pos,
 }
 
 template<typename Key, typename Value, int BLKSZ>
-bool BTree<Key, Value, BLKSZ> :: exist_leaf( int leaf_pos, Key key, std::fstream &btree_file ) {
+bool BTree<Key, Value, BLKSZ> :: exist_leaf( int leaf_pos, const Key &key, std::fstream &btree_file ) {
 	Leaf leaf;
 	cfop_btree.read( btree_file, leaf_pos, &leaf, 1 );
 	for( int i = 0; i < leaf.cnt; ++i ) {
@@ -758,7 +758,7 @@ bool BTree<Key, Value, BLKSZ> :: exist_leaf( int leaf_pos, Key key, std::fstream
 }
 
 template<typename Key, typename Value, int BLKSZ>
-bool BTree<Key, Value, BLKSZ> :: exist_node( int node_pos, Key key, std::fstream &btree_file ) {
+bool BTree<Key, Value, BLKSZ> :: exist_node( int node_pos, const Key &key, std::fstream &btree_file ) {
 	Node node;
 	cfop_btree.read( btree_file, node_pos, &node, 1 );
 	for( int i = 1; i < node.cnt; ++i ) {
@@ -778,7 +778,7 @@ bool BTree<Key, Value, BLKSZ> :: exist_node( int node_pos, Key key, std::fstream
 }
 
 template<typename Key, typename Value, int BLKSZ>
-bool BTree<Key, Value, BLKSZ> :: between( Key key, Key left_key, Key right_key ) {
+bool BTree<Key, Value, BLKSZ> :: between( const Key &key, const Key &left_key, const Key &right_key ) {
 	return !(key < left_key) && !(right_key < key);
 }
 
