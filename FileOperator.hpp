@@ -79,8 +79,8 @@ public:
 	enum {
 		BASE = 19260817,
 		MOD = 998244353,
-		MAX_TRY = 15,
-		MULTI = 19,
+		MAX_TRY = 10,
+		MULTI = 7,
 		HASHSZ_STATIC = BUFSZ / (AVESZ + sizeof(Node) + sizeof(Node*) * MULTI) * MULTI,
 	};
 	
@@ -181,6 +181,10 @@ public:
 		}
 		if( pos == -1 ) { // Hash Confliction
 			// std::cerr << "hash confliction" << std::endl;
+			// int cnt = 0;
+			// for( Node *p = head; p; p = p->nxt ) ++cnt;
+			// std::cerr << "hash used : " << cnt << "/" << HASHSZ << std::endl;
+			// std::cerr << "now : " << info.second << "/" << AVESZ << std::endl;
 			return nullptr;
 		}
 		// std::cerr << "hash success" << std::endl;

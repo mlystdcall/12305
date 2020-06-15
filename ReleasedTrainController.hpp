@@ -32,7 +32,7 @@ public:
 	std::fstream que_btree_file;
 	std::fstream que_info_file;
 	BTree<std::tuple<std::pair<int, int>, Date, int>, std::pair<Char, int> > btree;
-	CachedFileOperator<SUM * SUM> file_operator;
+	CachedFileOperator<SUM * sizeof(int)> file_operator;
 
 	void release_train( const char train_id[] );
 	void query_train( const char train_id[], Date date );
