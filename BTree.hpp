@@ -13,6 +13,7 @@ public:
 		ValueCnt = (BLKSZ - sizeof(int) * 3) / sizeof(std::pair<Key,int>),
 		KeyLim = KeyCnt / 2 - 1,
 		ValueLim = ValueCnt / 2 - 1,
+		INF = 1000000000,
 	};
 	
 	void insert( const Key &key,
@@ -215,12 +216,13 @@ int BTree<Key, Value, BLKSZ> :: query_list( const Key &key_left,
 			while(1) {
 				Leaf leaf;
 				cfop_btree.read( btree_file, left_leaf, &leaf, 1 );
-				for( int i = 0; i < leaf.cnt; ++i ) {
-					// std::cerr << "left_leaf = " << left_leaf << " key = " << leaf.value[i].first << std::endl;
-					if( between( leaf.value[i].first, key_left, key_right ) ) {
-						++cnt;
-					}
-				}
+				int lb = int(lower_bound(leaf.value,
+										 leaf.value + leaf.cnt,
+										 std::make_pair(key_left, -1)) - leaf.value);
+				int rb = int(upper_bound(leaf.value,
+										 leaf.value + leaf.cnt,
+										 std::make_pair(key_right, (int)INF)) - leaf.value - 1);
+				cnt += rb - lb + 1;
 				// std::cerr << "nxt = " << leaf.nxt << std::endl;
 				if( left_leaf == right_leaf ) {
 					break;
@@ -241,12 +243,16 @@ int BTree<Key, Value, BLKSZ> :: query_list( const Key &key_left,
 				while(1) {
 					Leaf leaf;
 					cfop_btree.read( btree_file, left_leaf, &leaf, 1 );
-					for( int i = 0; i < leaf.cnt; ++i ) {
-						if( between( leaf.value[i].first, key_left, key_right ) ) {
-							value[now].first = leaf.value[i].first;
-							cfop_value.read( value_file, leaf.value[i].second, &value[now].second, 1 );
-							++now;
-						}
+					int lb = int(lower_bound(leaf.value,
+											 leaf.value + leaf.cnt,
+											 std::make_pair(key_left, -1)) - leaf.value);
+					int rb = int(upper_bound(leaf.value,
+											 leaf.value + leaf.cnt,
+											 std::make_pair(key_right, (int)INF)) - leaf.value - 1);
+					for( int i = lb; i <= rb; ++i ) {
+						value[now].first = leaf.value[i].first;
+						cfop_value.read( value_file, leaf.value[i].second, &value[now].second, 1 );
+						++now;
 					}
 					if( left_leaf == right_leaf ) {
 						break;
@@ -315,23 +321,26 @@ std::tuple<bool,int,int> BTree<Key, Value, BLKSZ> :: insert_leaf( int leaf_pos,
 	Leaf leaf;
 	cfop_btree.read( btree_file, leaf_pos, &leaf, 1 );
 	assert( leaf.cnt < ValueCnt );
-	for( int i = 0; i < leaf.cnt; ++i ) {
-		if( between( leaf.value[i].first, key, key ) ) {
-			cfop_value.write( value_file, leaf.value[i].second, &value, 1 );
-			return std::make_tuple(true, -1, -1);
-		}
+	int pos = int(lower_bound( leaf.value,
+							   leaf.value + leaf.cnt,
+							   std::make_pair(key, -1) ) - leaf.value);
+	if( pos < leaf.cnt && between( leaf.value[pos].first, key, key ) ) {
+		int i = pos;
+		cfop_value.write( value_file, leaf.value[i].second, &value, 1 );
+		return std::make_tuple(true, -1, -1);
 	}
 	bool biggest = true;
-	for( int i = 0; i < leaf.cnt; ++i ) {
-		if( key < leaf.value[i].first ) {
-			for( int j = leaf.cnt-1; j >= i; --j )
-				leaf.value[j+1] = leaf.value[j];
-			leaf.value[i].first = key;
-			leaf.value[i].second = cfop_value.write( value_file, -1, &value, 1 );
-			++leaf.cnt;
-			biggest = false;
-			break;
-		}
+	pos = int(upper_bound( leaf.value,
+						   leaf.value + leaf.cnt,
+						   std::make_pair(key, (int)INF) ) - leaf.value);
+	if( pos < leaf.cnt ) {
+		int i = pos;
+		for( int j = leaf.cnt-1; j >= i; --j )
+			leaf.value[j+1] = leaf.value[j];
+		leaf.value[i].first = key;
+		leaf.value[i].second = cfop_value.write( value_file, -1, &value, 1 );
+		++leaf.cnt;
+		biggest = false;
 	}
 	if( biggest == true ) {
 		leaf.value[leaf.cnt].first = key;
@@ -386,34 +395,35 @@ std::tuple<bool,int,int> BTree<Key, Value, BLKSZ> :: insert_node( int node_pos,
 	cfop_btree.read( btree_file, node_pos, &node, 1 );
 	assert( node.cnt < KeyCnt );
 	bool biggest = true;
-	for( int i = 1; i < node.cnt; ++i ) {
-		if( key < node.key[i] ) {
-			std::tuple<bool,int,int> tmp;
+	int pos = int(upper_bound( node.key + 1,
+							   node.key + node.cnt,
+							   key ) - node.key );
+	if( pos < node.cnt ) {
+		int i = pos;
+		std::tuple<bool,int,int> tmp;
+		if( node.leaf ) {
+			tmp = insert_leaf( node.ch[i-1], key, value, btree_file, value_file );
+		} else {
+			tmp = insert_node( node.ch[i-1], key, value, btree_file, value_file );
+		}
+		biggest = false;
+		if( std::get<0>(tmp) == true ) {
+			;
+		} else {
+			for( int j = node.cnt-1; j >= i; --j ) {
+				node.key[j+1] = node.key[j];
+				node.ch[j+1] = node.ch[j];
+			}
+			++node.cnt;
+			node.ch[i-1] = std::get<1>(tmp);
+			node.ch[i] = std::get<2>(tmp);
 			if( node.leaf ) {
-				tmp = insert_leaf( node.ch[i-1], key, value, btree_file, value_file );
+				node.key[i-1] = get_min_leaf( node.ch[i-1], btree_file );
+				node.key[i] = get_min_leaf( node.ch[i], btree_file );
 			} else {
-				tmp = insert_node( node.ch[i-1], key, value, btree_file, value_file );
+				node.key[i-1] = get_min_node( node.ch[i-1], btree_file );
+				node.key[i] = get_min_node( node.ch[i], btree_file );
 			}
-			biggest = false;
-			if( std::get<0>(tmp) == true ) {
-				;
-			} else {
-				for( int j = node.cnt-1; j >= i; --j ) {
-					node.key[j+1] = node.key[j];
-					node.ch[j+1] = node.ch[j];
-				}
-				++node.cnt;
-				node.ch[i-1] = std::get<1>(tmp);
-				node.ch[i] = std::get<2>(tmp);
-				if( node.leaf ) {
-					node.key[i-1] = get_min_leaf( node.ch[i-1], btree_file );
-					node.key[i] = get_min_leaf( node.ch[i], btree_file );
-				} else {
-					node.key[i-1] = get_min_node( node.ch[i-1], btree_file );
-					node.key[i] = get_min_node( node.ch[i], btree_file );
-				}
-			}
-			break;
 		}
 	}
 	if( biggest == true ) {
@@ -480,13 +490,14 @@ template<typename Key, typename Value, int BLKSZ>
 bool BTree<Key, Value, BLKSZ> :: remove_leaf( int leaf_pos, const Key &key, std::fstream &btree_file ) {
 	Leaf leaf;
 	cfop_btree.read( btree_file, leaf_pos, &leaf, 1 );
-	for( int i = 0; i < leaf.cnt; ++i ) {
-		if( between( leaf.value[i].first, key, key ) ) {
-			for( int j = i+1; j < leaf.cnt; ++j )
-				leaf.value[j-1] = leaf.value[j];
-			--leaf.cnt;
-			break;
-		}
+	int pos = int(lower_bound( leaf.value,
+							   leaf.value + leaf.cnt,
+							   std::make_pair(key, -1) ) - leaf.value);
+	if( pos < leaf.cnt && between( leaf.value[pos].first, key, key ) ) {
+		int i = pos;
+		for( int j = i+1; j < leaf.cnt; ++j )
+			leaf.value[j-1] = leaf.value[j];
+		--leaf.cnt;
 	}
 	cfop_btree.write( btree_file, leaf_pos, &leaf, 1 );
 	return leaf.cnt <= ValueLim;
@@ -498,94 +509,95 @@ bool BTree<Key, Value, BLKSZ> :: remove_node( int node_pos, const Key &key, std:
 	cfop_btree.read( btree_file, node_pos, &node, 1 );
 	assert( node.cnt > 1 );
 	bool biggest = true;
-	for( int i = 1; i < node.cnt; ++i ) {
-		if( key < node.key[i] ) {
-			bool need_op;
+	int pos = int(upper_bound( node.key + 1,
+							   node.key + node.cnt,
+							   key ) - node.key);
+	if( pos < node.cnt ) {
+		int i = pos;
+		bool need_op;
+		if( node.leaf ) {
+			need_op = remove_leaf( node.ch[i-1], key, btree_file );
+		} else {
+			need_op = remove_node( node.ch[i-1], key, btree_file );
+		}
+		biggest = false;
+		if( need_op ) {
 			if( node.leaf ) {
-				need_op = remove_leaf( node.ch[i-1], key, btree_file );
-			} else {
-				need_op = remove_node( node.ch[i-1], key, btree_file );
-			}
-			biggest = false;
-			if( need_op ) {
-				if( node.leaf ) {
-					Leaf now_leaf;
-					Leaf right_leaf;
-					cfop_btree.read( btree_file, node.ch[i-1], &now_leaf, 1 );
-					cfop_btree.read( btree_file, node.ch[i], &right_leaf, 1 );
-					if( right_leaf.cnt == ValueLim + 1 ) { // merge
-						assert( now_leaf.cnt == ValueLim );
-						for( int j = 0; j < right_leaf.cnt; ++j )
-							now_leaf.value[now_leaf.cnt + j] = right_leaf.value[j];
-						now_leaf.cnt += right_leaf.cnt;
-						assert( now_leaf.cnt == ValueLim + ValueLim + 1 );
-						now_leaf.nxt = right_leaf.nxt;
-						if( now_leaf.nxt != -1 ) {
-							Leaf tmp;
-							cfop_btree.read( btree_file, now_leaf.nxt, &tmp, 1 );
-							tmp.pre = node.ch[i-1];
-							cfop_btree.write( btree_file, now_leaf.nxt, &tmp, 1 );
-						}
-						cfop_btree.write( btree_file, node.ch[i-1], &now_leaf, 1 );
-						node.key[i-1] = get_min_leaf( node.ch[i-1], btree_file );
-						for( int j = i+1; j < node.cnt; ++j ) {
-							node.key[j-1] = node.key[j];
-							node.ch[j-1] = node.ch[j];
-						}
-						--node.cnt;
-					} else if( right_leaf.cnt > ValueLim + 1 ) { // borrow
-						now_leaf.value[now_leaf.cnt++] = right_leaf.value[0];
-						for( int j = 1; j < right_leaf.cnt; ++j )
-							right_leaf.value[j-1] = right_leaf.value[j];
-						--right_leaf.cnt;
-						cfop_btree.write( btree_file, node.ch[i-1], &now_leaf, 1 );
-						cfop_btree.write( btree_file, node.ch[i], &right_leaf, 1 );
-						node.key[i-1] = get_min_leaf( node.ch[i-1], btree_file );
-						node.key[i] = get_min_leaf( node.ch[i], btree_file );
-					} else {
-						assert(0); // right_leaf.cnt <= ValueLim
+				Leaf now_leaf;
+				Leaf right_leaf;
+				cfop_btree.read( btree_file, node.ch[i-1], &now_leaf, 1 );
+				cfop_btree.read( btree_file, node.ch[i], &right_leaf, 1 );
+				if( right_leaf.cnt == ValueLim + 1 ) { // merge
+					assert( now_leaf.cnt == ValueLim );
+					for( int j = 0; j < right_leaf.cnt; ++j )
+						now_leaf.value[now_leaf.cnt + j] = right_leaf.value[j];
+					now_leaf.cnt += right_leaf.cnt;
+					assert( now_leaf.cnt == ValueLim + ValueLim + 1 );
+					now_leaf.nxt = right_leaf.nxt;
+					if( now_leaf.nxt != -1 ) {
+						Leaf tmp;
+						cfop_btree.read( btree_file, now_leaf.nxt, &tmp, 1 );
+						tmp.pre = node.ch[i-1];
+						cfop_btree.write( btree_file, now_leaf.nxt, &tmp, 1 );
 					}
+					cfop_btree.write( btree_file, node.ch[i-1], &now_leaf, 1 );
+					node.key[i-1] = get_min_leaf( node.ch[i-1], btree_file );
+					for( int j = i+1; j < node.cnt; ++j ) {
+						node.key[j-1] = node.key[j];
+						node.ch[j-1] = node.ch[j];
+					}
+					--node.cnt;
+				} else if( right_leaf.cnt > ValueLim + 1 ) { // borrow
+					now_leaf.value[now_leaf.cnt++] = right_leaf.value[0];
+					for( int j = 1; j < right_leaf.cnt; ++j )
+						right_leaf.value[j-1] = right_leaf.value[j];
+					--right_leaf.cnt;
+					cfop_btree.write( btree_file, node.ch[i-1], &now_leaf, 1 );
+					cfop_btree.write( btree_file, node.ch[i], &right_leaf, 1 );
+					node.key[i-1] = get_min_leaf( node.ch[i-1], btree_file );
+					node.key[i] = get_min_leaf( node.ch[i], btree_file );
 				} else {
-					Node now_node;
-					Node right_node;
-					cfop_btree.read( btree_file, node.ch[i-1], &now_node, 1 );
-					cfop_btree.read( btree_file, node.ch[i], &right_node, 1 );
-					if( right_node.cnt == KeyLim + 1 ) { // merge
-						assert( now_node.cnt == KeyLim );
-						for( int j = 0; j < right_node.cnt; ++j ) {
-							now_node.key[now_node.cnt + j] = right_node.key[j];
-							now_node.ch[now_node.cnt + j] = right_node.ch[j];
-						}
-						now_node.cnt += right_node.cnt;
-						assert( now_node.cnt == KeyLim + KeyLim + 1 );
-						cfop_btree.write( btree_file, node.ch[i-1], &now_node, 1 );
-						node.key[i-1] = get_min_node( node.ch[i-1], btree_file );
-						for( int j = i+1; j < node.cnt; ++j ) {
-							node.key[j-1] = node.key[j];
-							node.ch[j-1] = node.ch[j];
-						}
-						--node.cnt;
-					} else if( right_node.cnt > KeyLim + 1 ) { // borrow
-						now_node.key[now_node.cnt] = right_node.key[0];
-						now_node.ch[now_node.cnt] = right_node.ch[0];
-						++now_node.cnt;
-						for( int j = 1; j < right_node.cnt; ++j ) {
-							right_node.key[j-1] = right_node.key[j];
-							right_node.ch[j-1] = right_node.ch[j];
-						}
-						--right_node.cnt;
-						cfop_btree.write( btree_file, node.ch[i-1], &now_node, 1 );
-						cfop_btree.write( btree_file, node.ch[i], &right_node, 1 );
-						node.key[i-1] = get_min_node( node.ch[i-1], btree_file );
-						node.key[i] = get_min_node( node.ch[i], btree_file );
-					} else {
-						assert(0); // right_node.cnt <= KeyLim
-					}
+					assert(0); // right_leaf.cnt <= ValueLim
 				}
 			} else {
-				;
+				Node now_node;
+				Node right_node;
+				cfop_btree.read( btree_file, node.ch[i-1], &now_node, 1 );
+				cfop_btree.read( btree_file, node.ch[i], &right_node, 1 );
+				if( right_node.cnt == KeyLim + 1 ) { // merge
+					assert( now_node.cnt == KeyLim );
+					for( int j = 0; j < right_node.cnt; ++j ) {
+						now_node.key[now_node.cnt + j] = right_node.key[j];
+						now_node.ch[now_node.cnt + j] = right_node.ch[j];
+					}
+					now_node.cnt += right_node.cnt;
+					assert( now_node.cnt == KeyLim + KeyLim + 1 );
+					cfop_btree.write( btree_file, node.ch[i-1], &now_node, 1 );
+					node.key[i-1] = get_min_node( node.ch[i-1], btree_file );
+					for( int j = i+1; j < node.cnt; ++j ) {
+						node.key[j-1] = node.key[j];
+						node.ch[j-1] = node.ch[j];
+					}
+					--node.cnt;
+				} else if( right_node.cnt > KeyLim + 1 ) { // borrow
+					now_node.key[now_node.cnt] = right_node.key[0];
+					now_node.ch[now_node.cnt] = right_node.ch[0];
+					++now_node.cnt;
+					for( int j = 1; j < right_node.cnt; ++j ) {
+						right_node.key[j-1] = right_node.key[j];
+						right_node.ch[j-1] = right_node.ch[j];
+					}
+					--right_node.cnt;
+					cfop_btree.write( btree_file, node.ch[i-1], &now_node, 1 );
+					cfop_btree.write( btree_file, node.ch[i], &right_node, 1 );
+					node.key[i-1] = get_min_node( node.ch[i-1], btree_file );
+					node.key[i] = get_min_node( node.ch[i], btree_file );
+				} else {
+					assert(0); // right_node.cnt <= KeyLim
+				}
 			}
-			break;
+		} else {
+			;
 		}
 	}
 	if( biggest == true ) {
@@ -685,13 +697,15 @@ template<typename Key, typename Value, int BLKSZ>
 int BTree<Key, Value, BLKSZ> :: query_leaf_pos_helper( int node_pos, const Key &key, std::fstream &btree_file ) {
 	Node node;
 	cfop_btree.read( btree_file, node_pos, &node, 1 );
-	for( int i = 1; i < node.cnt; ++i ) {
-		if( key < node.key[i] ) {
-			if( node.leaf ) {
-				return node.ch[i-1];
-			} else {
-				return query_leaf_pos_helper( node.ch[i-1], key, btree_file );
-			}
+	int pos = int(upper_bound( node.key + 1,
+							   node.key + node.cnt,
+							   key ) - node.key);
+	if( pos < node.cnt ) {
+		int i = pos;
+		if( node.leaf ) {
+			return node.ch[i-1];
+		} else {
+			return query_leaf_pos_helper( node.ch[i-1], key, btree_file );
 		}
 	}
 	if( node.leaf ) {
@@ -708,12 +722,14 @@ Value BTree<Key, Value, BLKSZ> :: query_leaf( int leaf_pos,
 											  std::fstream &value_file ) {
 	Leaf leaf;
 	cfop_btree.read( btree_file, leaf_pos, &leaf, 1 );
-	for( int i = 0; i < leaf.cnt; ++i ) {
-		if( between( leaf.value[i].first, key, key ) ) {
-			Value ans;
-			cfop_value.read( value_file, leaf.value[i].second, &ans, 1 );
-			return ans;
-		}
+	int pos = int(lower_bound( leaf.value,
+							   leaf.value + leaf.cnt,
+							   std::make_pair(key, -1) ) - leaf.value);
+	if( pos < leaf.cnt && between( leaf.value[pos].first, key, key ) ) {
+		int i = pos;
+		Value ans;
+		cfop_value.read( value_file, leaf.value[i].second, &ans, 1 );
+		return ans;
 	}
 	return assert(0), Value();
 }
@@ -729,13 +745,15 @@ Value BTree<Key, Value, BLKSZ> :: query_node( int node_pos,
 	for( int i = 0; i < node.cnt; ++i )
 		std::cerr << "node_pos = " << node_pos << " key = " << node.key[i] << std::endl;
 	*/
-	for( int i = 1; i < node.cnt; ++i ) {
-		if( key < node.key[i] ) {
-			if( node.leaf ) {
-				return query_leaf( node.ch[i-1], key, btree_file, value_file );
-			} else {
-				return query_node( node.ch[i-1], key, btree_file, value_file );
-			}
+	int pos = int(upper_bound( node.key + 1,
+							   node.key + node.cnt,
+							   key ) - node.key);
+	if( pos < node.cnt ) {
+		int i = pos;
+		if( node.leaf ) {
+			return query_leaf( node.ch[i-1], key, btree_file, value_file );
+		} else {
+			return query_node( node.ch[i-1], key, btree_file, value_file );
 		}
 	}
 	if( node.leaf ) {
@@ -749,10 +767,11 @@ template<typename Key, typename Value, int BLKSZ>
 bool BTree<Key, Value, BLKSZ> :: exist_leaf( int leaf_pos, const Key &key, std::fstream &btree_file ) {
 	Leaf leaf;
 	cfop_btree.read( btree_file, leaf_pos, &leaf, 1 );
-	for( int i = 0; i < leaf.cnt; ++i ) {
-		if( between( leaf.value[i].first, key, key ) ) {
-			return true;
-		}
+	int pos = int(lower_bound( leaf.value,
+							   leaf.value + leaf.cnt,
+							   std::make_pair(key, -1) ) - leaf.value);
+	if( pos < leaf.cnt && between( leaf.value[pos].first, key, key ) ) {
+		return true;
 	}
 	return false;
 }
@@ -761,13 +780,15 @@ template<typename Key, typename Value, int BLKSZ>
 bool BTree<Key, Value, BLKSZ> :: exist_node( int node_pos, const Key &key, std::fstream &btree_file ) {
 	Node node;
 	cfop_btree.read( btree_file, node_pos, &node, 1 );
-	for( int i = 1; i < node.cnt; ++i ) {
-		if( key < node.key[i] ) {
-			if( node.leaf ) {
-				return exist_leaf( node.ch[i-1], key, btree_file );
-			} else {
-				return exist_node( node.ch[i-1], key, btree_file );
-			}
+	int pos = int(upper_bound( node.key + 1,
+							   node.key + node.cnt,
+							   key ) - node.key);
+	if( pos < node.cnt ) {
+		int i = pos;
+		if( node.leaf ) {
+			return exist_leaf( node.ch[i-1], key, btree_file );
+		} else {
+			return exist_node( node.ch[i-1], key, btree_file );
 		}
 	}
 	if( node.leaf ) {

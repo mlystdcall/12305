@@ -90,6 +90,7 @@ public:
 	Node **h;
 	Node *head, *tail;
 	int sz;
+	int miss_cnt, tot_cnt;
 	
 	bool is_prime( int x ) {
 		for( int i = 2; i*i <= x; ++i )
@@ -109,18 +110,24 @@ public:
 		sz = 0;
 		for( int i = 0; i < HASHSZ; ++i )
 			h[i] = nullptr;
+		
+		miss_cnt = tot_cnt = 0;
 	}
 	
 	bool eq( const std::pair<int,int> &info1, const std::pair<int,int> &info2 ) {
 		if( info1.first == info2.first ) {
-			assert( info1.second == info2.second );
+			if( info1.second != info2.second ) {
+				std::cerr << "info1.second = " << info1.second << std::endl;
+				std::cerr << "info2.second = " << info2.second << std::endl;
+				assert( info1.second == info2.second );
+			}
 			return true;
 		} else {
 			return false;
 		}
 	}
 	
-	int query_pt( std::pair<int,int> info ) {
+	int query_pt( const std::pair<int,int> &info ) {
 		for( int i = 0, hv = hsh(info); i < MAX_TRY; ++i, hv = adv(hv, i) ) {
 			if( h[hv] && eq( h[hv]->info, info ) ) {
 				return hv;
@@ -129,9 +136,11 @@ public:
 		return -1;
 	}
 	
-	Node *query( std::pair<int,int> info ) {
+	Node *query( const std::pair<int,int> &info ) {
+		++tot_cnt;
 		int pos = query_pt(info);
 		if( pos == -1 ) {
+			++miss_cnt;
 			return nullptr;
 		} else {
 			Node *p = h[pos];
@@ -166,7 +175,7 @@ public:
 		}
 	}
 	
-	Node *insert( std::pair<int,int> info, std::fstream &file ) {
+	Node *insert( const std::pair<int,int> &info, std::fstream &file ) {
 		// assert( query_pt(info) == -1 );
 		while( sz + info.second + int(sizeof(Node)) > MAXSZ ) {
 			assert( head != nullptr );
@@ -204,7 +213,7 @@ public:
 		return tail;
 	}
 	
-	void remove( std::pair<int,int> info, std::fstream &file ) {
+	void remove( const std::pair<int,int> &info, std::fstream &file ) {
 		int pos = query_pt(info);
 		if( pos == -1 ) {
 			return;
@@ -293,6 +302,7 @@ public:
 				file.write( p->value, p->info.second );
 				p->dirty = false;
 			}
+		std::cerr << "Cache miss : " << miss_cnt << " tot_cnt = " << tot_cnt << std::endl;
 	}
 };
 
